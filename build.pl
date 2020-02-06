@@ -39,7 +39,7 @@ sub main() {
 
     my $action = $opts{'a'} || 'build';
     if ($action eq 'build') {
-        my $jar = $Xposed::cfg->val('General', 'outdir') . '/java/XposedBridge.jar';
+        my $jar = $Xposed::cfg->val('General', 'outdir') . '/java/ShadowBridge.jar';
         if (!-r $jar) {
             print_error("$jar doesn't exist or isn't readable");
             exit 1;
@@ -176,9 +176,9 @@ sub compile($$;$) {
 
     # Version-specific targets
     if ($sdk < 21) {
-        push @targets, qw/libxposed_dalvik/;
+        push @targets, qw/libshadow_dalvik/;
     } else {
-        push @targets, qw/libxposed_art/;
+        push @targets, qw/libshadow_art/;
         push @targets, qw/libart libart-compiler libart-disassembler libsigchain/;
         push @targets, qw/dex2oat oatdump patchoat/;
         push @makefiles, qw(art/Android.mk);
@@ -252,14 +252,14 @@ sub get_compiled_files($$) {
     tie(%files, 'Tie::IxHash');
 
     if ($sdk < 21) {
-        $files{'/system/bin/app_process_xposed'} = '/system/bin/app_process_xposed';
+        $files{'/system/bin/app_process_shadow'} = '/system/bin/app_process_shadow';
         $files{$_} = $_ foreach qw(
-            /system/lib/libxposed_dalvik.so
+            /system/lib/libshadow_dalvik.so
         );
     } else {
         $files{$_} = $_ foreach qw(
-            /system/bin/app_process32_xposed
-            /system/lib/libxposed_art.so
+            /system/bin/app_process32_shadow
+            /system/lib/libshadow_art.so
 
             /system/lib/libart.so
             /system/lib/libart-compiler.so
@@ -276,8 +276,8 @@ sub get_compiled_files($$) {
             delete $files{'/system/lib/libart-disassembler.so'};
 
             $files{$_} = $_ foreach qw(
-                /system/bin/app_process64_xposed
-                /system/lib64/libxposed_art.so
+                /system/bin/app_process64_shadow
+                /system/lib64/libshadow_art.so
 
                 /system/lib64/libart.so
                 /system/lib64/libart-disassembler.so
@@ -300,11 +300,11 @@ sub create_xposed_prop($$;$) {
     my $print = shift || 0;
 
     should_perform_step('prop') || return 1;
-    print_status("Creating xposed.prop file...", 1);
+    print_status("Creating shadow.prop file...", 1);
 
     # Open the file
     my $coldir = Xposed::get_collection_dir($platform, $sdk);
-    my $propfile = $coldir . '/files/system/xposed.prop';
+    my $propfile = $coldir . '/files/system/shadow.prop';
     print "$propfile\n";
     make_path(dirname($propfile));
     if (!open(PROPFILE, '>', $propfile)) {
@@ -363,7 +363,7 @@ sub create_zip($$) {
     make_path($coldir);
     $zip->addTree($coldir . '/files/', '') == AZ_OK || return 0;
     $zip->addDirectory('system/framework/') || return 0;
-    $zip->addFile("$outdir/java/XposedBridge.jar", 'system/framework/XposedBridge.jar') || return 0;
+    $zip->addFile("$outdir/java/ShadowBridge.jar", 'system/framework/ShadowBridge.jar') || return 0;
     # TODO: We probably need different files for older releases
     $zip->addTree($Bin . '/zipstatic/_all/', '') == AZ_OK || return 0;
     $zip->addTree($Bin . '/zipstatic/' . $platform . '/', '') == AZ_OK || return 0;
@@ -450,12 +450,12 @@ sub build_java() {
     system('./gradlew app:assembleRelease lint') == 0 || return 0;
     print "\n";
 
-    print_status('Copying APK to XposedBridge.jar...', 1);
+    print_status('Copying APK to ShadowBridge.jar...', 1);
     my $base = $javadir . '/app/build/outputs/apk/app-release';
     foreach my $suffix ('.apk', '-unaligned.apk', '-unsigned.apk') {
         my $file = $base . $suffix;
         if (-f $file) {
-            my $target = $Xposed::cfg->val('General', 'outdir') . '/java/XposedBridge.jar';
+            my $target = $Xposed::cfg->val('General', 'outdir') . '/java/ShadowBridge.jar';
             print "$file => $target\n";
             make_path(dirname($target));
             if (!copy($file, $target)) {
